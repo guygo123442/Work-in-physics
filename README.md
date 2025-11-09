@@ -131,6 +131,20 @@
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; animation: none !important; }
     }
+    /* === Bottom Sheet למובייל (חלון מידע נפתח מלמטה) === */
+    .sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:30}
+    .sheet{position:fixed;left:0;right:0;bottom:0;height:min(64vh,520px);background:#0c1117;border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -8px 24px rgba(0,0,0,.35);transform:translateY(110%);transition:transform .28s ease;z-index:31;display:flex;flex-direction:column}
+    .sheet-handle{align-self:center;width:56px;height:5px;border-radius:999px;background:#334154;margin:10px 0}
+    .sheet-header{padding:0 16px 8px 16px;font-weight:700}
+    .sheet-body{padding:0 16px 16px 16px;overflow:auto;font-size:16px;line-height:1.7}
+    .sheet-close{position:absolute;left:12px;top:8px;background:transparent;border:0;color:#bcd;font-size:22px}
+    .sheet-open .sheet{transform:translateY(0)}
+    .sheet-open .sheet-backdrop{opacity:1;pointer-events:auto}
+
+    /* הסתרת כרטיס הצד במובייל, משתמשים ב-sheet */
+    @media (max-width: 900px){
+      .card{display:none}
+    }
   </style>
 </head>
 <body>
@@ -217,6 +231,10 @@
         const name = el?.dataset?.name || '';
         infoTitle.textContent = name || '—';
         infoText.innerHTML = texts[name] || 'אין מידע.';
+        // במובייל פותח חלון תחתון עם ההסבר
+        if (window.matchMedia('(max-width: 900px)').matches) {
+          if (typeof openSheet === 'function') openSheet(name, infoText.innerHTML);
+        }
         bodies.forEach(b=> b.style.outline = 'none');
         if (el) el.style.outline = '2px solid var(--acc)';
         index = i;
@@ -276,6 +294,46 @@
       // להבטיח שה-DOM מוכן
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
       else start();
+    })();
+  </script>
+  
+  <!-- Bottom Sheet markup -->
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-handle" id="sheetDrag"></div>
+    <button class="sheet-close" id="sheetClose" aria-label="סגירה">✕</button>
+    <div class="sheet-header" id="sheetTitle">פרטים</div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+
+  <script>
+    // לוגיקת ה-Sheet (נפרדת מהמשחק)
+    const sheet = document.getElementById('sheet');
+    const sheetBackdrop = document.getElementById('sheetBackdrop');
+    const sheetBody = document.getElementById('sheetBody');
+    const sheetTitle = document.getElementById('sheetTitle');
+    const sheetClose = document.getElementById('sheetClose');
+
+    function openSheet(title, html){
+      sheetTitle.textContent = title || 'פרטים';
+      sheetBody.innerHTML = html || '';
+      document.documentElement.classList.add('sheet-open');
+    }
+    function closeSheet(){ document.documentElement.classList.remove('sheet-open'); }
+
+    sheetBackdrop?.addEventListener('click', closeSheet);
+    sheetClose?.addEventListener('click', closeSheet);
+
+    // גרירת הסדין לסגירה במובייל
+    (function(){
+      let startY=null, lastY=null;
+      const drag = document.getElementById('sheetDrag');
+      const onStart = y => { startY=y; lastY=y; };
+      const onMove  = y => { if(startY==null)return; lastY=y; const dy=Math.max(0,y-startY); sheet.style.transform=`translateY(${Math.min(dy, window.innerHeight*0.7)}px)`; };
+      const onEnd   = () => { if(startY==null)return; const dy=Math.max(0,lastY-startY); if(dy>80) closeSheet(); sheet.style.transform=''; startY=null; };
+      drag?.addEventListener('touchstart', e=>onStart(e.touches[0].clientY), {passive:true});
+      drag?.addEventListener('touchmove',  e=>onMove(e.touches[0].clientY),  {passive:true});
+      drag?.addEventListener('touchend',   onEnd, {passive:true});
     })();
   </script>
 </body>
